@@ -23,9 +23,12 @@ def read_accelerometer_data(filename):
         next(reader, None)
 
         timestamps = []
+        #data from accelerometer
         x_data = []
         y_data = []
         z_data = []
+        # contains data from y axis of gyroscope
+        head_data=[]
 
         for line in reader:
 
@@ -33,14 +36,16 @@ def read_accelerometer_data(filename):
             x_data.append(line[2])
             y_data.append(line[3])
             z_data.append(line[4])
+            head_data.append(line[6])
 
-        return (timestamps, x_data , y_data , z_data)
+        return (timestamps, x_data , y_data , z_data, head_data)
 
 acc_timestamps , x_data, y_data , z_data = read_accelerometer_data(filename)
 
 x_data = np.array([float(i) for i in x_data])
 y_data = np.array([float(i) for i in y_data])
 z_data = np.array([float(i) for i in z_data])
+head_data=np.array[float(i) for i in head_data]
 acc_timestamps = np.array([float(i.replace(',','.')) for i in acc_timestamps])
 
 acc_timestamps = np.array(acc_timestamps)
@@ -103,6 +108,7 @@ for x in time_data_diff:
 new_x = x_data/7000
 new_y = y_data/7000
 new_z = z_data/7000
+new_head=head_data/7000
 
 
 def accl_mag(accl_x, accl_y, accl_z):
@@ -112,12 +118,6 @@ def accl_mag(accl_x, accl_y, accl_z):
     return mag_accl
 
 new_accl=accl_mag(new_x,new_y,new_z)
-
-def butter_filter(order,array_name):
-    filt_signal=signal.butter(order, array_name, 'low', analog=True)
-    return filt_signal
-
-buttered_signal=butter_filter(4,new_accl)
 
 plt.figure()
 plt.plot(buttered_signal, '#1A8925')
