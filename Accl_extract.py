@@ -40,12 +40,13 @@ def read_accelerometer_data(filename):
 
         return (timestamps, x_data , y_data , z_data, head_data)
 
-acc_timestamps , x_data, y_data , z_data = read_accelerometer_data(filename)
+acc_timestamps , x_data, y_data , z_data, head_data = read_accelerometer_data(filename)
 
 x_data = np.array([float(i) for i in x_data])
 y_data = np.array([float(i) for i in y_data])
 z_data = np.array([float(i) for i in z_data])
-head_data=np.array[float(i) for i in head_data]
+head_data=np.array([float(i) for i in head_data])
+
 acc_timestamps = np.array([float(i.replace(',','.')) for i in acc_timestamps])
 
 acc_timestamps = np.array(acc_timestamps)
@@ -113,31 +114,73 @@ new_head=head_data/7000
 
 def accl_mag(accl_x, accl_y, accl_z):
     ##Calculates the magnitude of the acceleration vector
-    mag_accl=np.sqrt(np.square(accl_x)+np.square(accl_y)+np.square(accl_z))
+    mag_accl=np.sqrt(np.square(accl_x)+np.square(accl_y)+np.square(accl_z))/3 #3 to normalize
 
     return mag_accl
 
+#accl vectoy
 new_accl=accl_mag(new_x,new_y,new_z)
 
-plt.figure()
-plt.plot(buttered_signal, '#1A8925')
+
+i=0
+new_array=[]
+indices2=np.array(indices)
+for x in event_data:
+
+    if x=='Intromission':
+       new_array= np.append(new_array,i)
+    i=i+1
+
+#find all the intromission indicies
+
+intromission_array=[]
+for x in new_array:
+    intromission_array=np.append(intromission_array, indices2[x])
 
 
-#plt.plot(new_y, '#891A7D')
-#plt.plot(new_z, '#02BACF')
 
-#import pickle
-#f = open('graph.pickle', 'wb')
-#pickle.dump(n, f)
-#f.close()
+
 #
-#n = pickle.load(open('graph.pickle', 'rb'))
+#fig, ax = plt.subplots(3, 1)
+#ax[0].plot(new_accl[(start1-300):(start1+300)])
+#ax[1].plot(new_accl[(start2-300):(start2+300)])
+
+def euc_distance(behavior_array, full_data, time_interval):
+
+    #determine size of new Euc dist matrix
+    length_behavior_d = len(behavior_array)
+    m_sq_dist=np.zeros(length_behavior_d,length_behavior_d)
+    p=0
+
+    while p < length_behavior_d:
+        start1 = int(intromission_array[p])
+        x=0
+
+        while x < length_behavior_d:
+            start2 = int(intromission_array[x])
+            m_sq_dist[p,x]= np.sqrt(np.sum(np.square(full_data[start2-300:start2+300]-full_data[start1-300:start1+300])))
+            x=x+1
+    p=p+1
+
+    return m_sq_dist, start1 , start2
+
+euc ,start1, start2=euc_distance(intromission_array, new_accl,300)
+
+#ax[2].plot(sq_diff)
+#n=len(new_accl) #size of sample window
+#T = n/Fs
+#k = np.arange(n)
 #
-#n = np.vstack([new_x,new_y,new_z]).T
-#plt.plot(n)
-
-
-
-#val = 5000 # this is the value where you want the data to appear on the y-axis.
-plt.plot(indices, np.zeros_like(indices), 'o' , color = 'r')
-plt.show()
+#frq = k/T # two sides frequency range
+##frq = frq[:25] # one side frequency range
+#
+#fft_sig=np.fft.fft(new_accl)/n
+##fft_sig=fft_sig[:(n/2)]
+#
+#fig, ax = plt.subplots(2, 1)
+#ax[0].plot(frq,new_accl)
+#ax[0].set_xlabel('Time')
+#ax[0].set_ylabel('Amplitude')
+#ax[1].plot(frq,abs(fft_sig),'r') # plotting the spectrum
+#ax[1].set_xlabel('Freq (Hz)')
+#ax[1].set_ylabel('|Y(freq)|')
