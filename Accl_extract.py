@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import re
 from bisect import bisect_left
 from scipy import signal
+from sklearn.decomposition import PCA
+
 
 
 #from operator import itemgetter
@@ -114,7 +116,7 @@ new_head=head_data/7000
 
 def accl_mag(accl_x, accl_y, accl_z):
     ##Calculates the magnitude of the acceleration vector
-    mag_accl=np.sqrt(np.square(accl_x)+np.square(accl_y)+np.square(accl_z))/3 #3 to normalize
+    mag_accl=np.sqrt(np.square(accl_x)+np.square(accl_y)+np.square(accl_z)) #3 to normalize
 
     return mag_accl
 
@@ -143,44 +145,91 @@ for x in new_array:
 #
 #fig, ax = plt.subplots(3, 1)
 #ax[0].plot(new_accl[(start1-300):(start1+300)])
-#ax[1].plot(new_accl[(start2-300):(start2+300)])
+
+start2=int(intromission_array[1])
+foo=new_accl[(start2-300):(start2+300)]
+
 
 def euc_distance(behavior_array, full_data, time_interval):
 
     #determine size of new Euc dist matrix
+    t=int(time_interval)
     length_behavior_d = len(behavior_array)
-    m_sq_dist=np.zeros(length_behavior_d,length_behavior_d)
-    p=0
+    m_sq_dist=np.zeros((length_behavior_d,length_behavior_d))
+    z=0
 
-    while p < length_behavior_d:
-        start1 = int(intromission_array[p])
-        x=0
-
-        while x < length_behavior_d:
-            start2 = int(intromission_array[x])
-            m_sq_dist[p,x]= np.sqrt(np.sum(np.square(full_data[start2-300:start2+300]-full_data[start1-300:start1+300])))
-            x=x+1
-    p=p+1
-
+    for p in np.nditer(behavior_array):
+    #while p < length_behavior_d:
+        start1 = int(p)
+        y=0
+        for x in np.nditer(behavior_array):
+        #while x < length_behavior_d:
+            #start2 = int(behavior_array[x])
+            start2=int(x)
+            m_sq_dist[z,y]= np.sqrt(np.sum(np.square(full_data[start2-t:start2+t]-full_data[start1-t:start1+t])))
+            y=y+1
+        z=z+1
+     #return euc matr, start1 and start2 should be equal   
     return m_sq_dist, start1 , start2
 
-euc ,start1, start2=euc_distance(intromission_array, new_accl,300)
+
+############################################################
+
+def coor_btwn_sigs(behavior_array, full_data, time_interval):
+    t=int(time_interval)
+    length_behavior_d = len(behavior_array)
+    m_cross_corr=np.zeros((length_behavior_d,length_behavior_d))
+    z=0
+
+    for p in np.nditer(behavior_array):
+    #while p < length_behavior_d:
+        start1 = int(p)
+        y=0
+        for x in np.nditer(behavior_array):
+        #while x < length_behavior_d:
+            #start2 = int(behavior_array[x])
+            start2=int(x)
+            m_cross_corr[z,y]= np.correlate(full_data[start2-t:start2+t],full_data[start1-t:start1+t])
+            y=y+1
+        z=z+1
+     #return euc matr, start1 and start2 should be equal   
+    return m_cross_corr, start1 , start2
+
+euc ,start1, start2=euc_distance(intromission_array, new_accl,30)
+cross_corr=coor_btwn_sigs(intromission_array, new_accl,30)
+
+
+
+
+#pca=PCA(n_components=182,svd_solver='full')
+#pca.fit(euc)
+#foo=pca.explained_variance_
+#foo2=pca.transform(euc)
+##foo3=pca.singular_values_
+#
+##print(pca.singular_values_)  
+#
+
+plt.clf()
+#plt.plot(pca.explained_variance_,)
+#plt.axis('tight')
+#plt.xlabel('n_components')
+#plt.ylabel('explained_variance_')
 
 #ax[2].plot(sq_diff)
-#n=len(new_accl) #size of sample window
-#T = n/Fs
-#k = np.arange(n)
-#
-#frq = k/T # two sides frequency range
-##frq = frq[:25] # one side frequency range
-#
-#fft_sig=np.fft.fft(new_accl)/n
-##fft_sig=fft_sig[:(n/2)]
-#
-#fig, ax = plt.subplots(2, 1)
-#ax[0].plot(frq,new_accl)
-#ax[0].set_xlabel('Time')
-#ax[0].set_ylabel('Amplitude')
-#ax[1].plot(frq,abs(fft_sig),'r') # plotting the spectrum
-#ax[1].set_xlabel('Freq (Hz)')
-#ax[1].set_ylabel('|Y(freq)|')
+
+fs=100
+f, t, Sxx = signal.spectrogram(foo, fs)
+fig, ax = plt.subplots(2, 1)
+ax[0].plot(foo)
+ax[0].set_xlabel('Time')
+ax[0].set_ylabel('Amplitude')
+ax[1].pcolormesh(t, f, Sxx) # plotting the spectrum
+ax[1].set_xlabel('Freq (Hz)')
+ax[1].set_ylabel('|Y(freq)|')
+
+
+plt.ylabel('Frequency [Hz]')
+plt.xlabel('Time [sec]')
+plt.show()
+
