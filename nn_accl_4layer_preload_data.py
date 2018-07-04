@@ -22,7 +22,7 @@ tf.reset_default_graph()
 
 # Parameters
 learning_rate = 0.0001
-training_epochs = 100
+training_epochs = 300
 batch_size = 32
 display_step = 1
 
@@ -98,7 +98,7 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 ############################################
 
 #let's save some weights
-saver = tf.train.Saver()
+saver = tf.train.Saver(max_to_keep=30)
 
 # Initializing the variables
 init = tf.global_variables_initializer()
@@ -107,43 +107,64 @@ init = tf.global_variables_initializer()
 outfile='Train_Test_Data.npz'
 npzfile = np.load('Train_Test_Data.npz')
 
+
 training_data=npzfile['training_data']
 training_labels=npzfile['training_labels']
 test_set=npzfile['test_set']
 test_labels=npzfile['test_labels']
 
-#randomly shuffle all the data for training the network
-shuffle_accl, shuffle_labels =af.shuffle_data(training_data, training_labels)
 
-#set percentage of data to be used for validating
-percentage=0.2
-
-#Generate test set and training set
-train_x,train_y,test_x,test_y=af.generate_test(shuffle_accl,shuffle_labels,percentage)
+#for single session data
+single_session=np.load('Train_Test_Data_Single_Video.npz')
+test_set_single=single_session['test_set_single']
+test_labels_single=single_session['test_labels_single']
 
 
-total_batch = int(train_y.shape[0]/batch_size)
-avg_cost_array=np.zeros(training_epochs* total_batch)
 
+
+
+
+
+
+
+
+
+
+#file path for model saver
+file_name='/home/baylor/Desktop/DATA/Behavior_Analysis/Model_Weights/model.ckpt'
+
+use_training= True
+single_trial=True
+
+if use_training==False:
+        #randomly shuffle all the data for training the network
+    shuffle_accl, shuffle_labels =af.shuffle_data(training_data, training_labels)
+    
+    #set percentage of data to be used for validating
+    percentage=0.2
+    
+    #Generate test set and training set
+    train_x,train_y,validation_x,validation_y=af.generate_test(shuffle_accl,shuffle_labels,percentage)
+    total_batch = int(train_y.shape[0]/batch_size)
+    avg_cost_array=np.zeros(training_epochs* total_batch)
 
 soft_max_prediction=np.zeros((test_labels.shape[0],2),dtype='float32')
-
+soft_max_prediction_single=np.zeros((test_labels_single.shape[0],2),dtype='float32')
 #used for plotting the difference between logits, alternative
 #to using softmax
 logit_diff=np.zeros((test_labels.shape[0],2),dtype='float32')
+logit_diff_single=np.zeros((test_labels_single.shape[0],2),dtype='float32')##Start traning ##
 
-#file path for model saver
-file_name='/home/baylor/Desktop/DATA/Behavior_Analysis/Behavior_Analysis/model.ckpt'
 
-use_training= False
 
-##Start traning ##
+
+
 with tf.Session() as sess:
 
     sess.run(init)
     if use_training:
         #reloads previous training data
-        saver.restore(sess, "/home/baylor/Desktop/DATA/Behavior_Analysis/Behavior_Analysis/model.ckpt")
+        saver.restore(sess, "/home/baylor/Desktop/DATA/Behavior_Analysis/Model_Weights/model250.ckpt")
     else:
         plt.figure() 
         # Training cycle
@@ -169,8 +190,8 @@ with tf.Session() as sess:
     
             #Display logs per epoch step
             if epoch % display_step == 0:
-                tc = sess.run([loss_op], feed_dict={X: test_x,
-                                  Y: test_y})
+                tc = sess.run([loss_op], feed_dict={X: validation_x,
+                                  Y: validation_y})
     
                 tc=float(tc[0])
                 avg_cost_test = tc
@@ -185,40 +206,81 @@ with tf.Session() as sess:
                 plt.ylabel('Loss')
                 plt.pause(1)
     
-            if epoch%10 == 0:
+            if epoch%10 == 0 or epoch==training_epochs:
                 #save weights every 10 epochs
-                save_path = saver.save(sess, "/home/baylor/Desktop/DATA/Behavior_Analysis/Behavior_Analysis/model" + str(epoch) + ".ckpt")
+                save_path = saver.save(sess, "/home/baylor/Desktop/DATA/Behavior_Analysis/Model_Weights/model" + str(epoch) + ".ckpt")
         
         print("Optimization Finished!")
  ##################################################################
 #    plt.figure()
+#    
+#    for z in range(test_labels.shape[0]):
+#        soft_max_prediction[z,:]=pred.eval(feed_dict={X: test_set[[z],:]})
+#        logit_diff[z,:]=logits.eval(feed_dict={X: test_set[[z],:]})
+#    
+#    plt.figure()
+#    ax1=plt.subplot(211)
+#    #plt.subplot(3, 1, 2)
+#    plt.plot((logit_diff[:,0]-logit_diff[:,1]),'g')
+#    plt.xlabel('time')
+#    plt.ylabel('activation_model')
+#
+#
+#    ax2=plt.subplot(212,sharex=ax1)
+#    #plt.subplot(3, 1, 3)
+#    #plot mount behaior
+#    plt.plot(test_labels[:,0], 'r')
+#    #plot intromission data
+#
+#    #plt.plot(a.intromission_lables_gt[:,0], 'r')
+#    plt.xlabel('time')
+#    plt.ylabel('activation_ground_truth')
+#    plt.show()
+########################################################################    
+    plt.figure()
     
-    for z in range(test_labels.shape[0]):
-        soft_max_prediction[z,:]=pred.eval(feed_dict={X: test_set[[z],:]})
-        logit_diff[z,:]=logits.eval(feed_dict={X: test_set[[z],:]})
+    for z in range(test_labels_single.shape[0]):
+        soft_max_prediction_single[z,:]=pred.eval(feed_dict={X: test_set_single[[z],:]})
+        logit_diff_single[z,:]=logits.eval(feed_dict={X: test_set_single[[z],:]})
     
     plt.figure()
     ax1=plt.subplot(211)
     #plt.subplot(3, 1, 2)
-    plt.plot((logit_diff[:,0]-logit_diff[:,1]),'g')
+    plt.plot((logit_diff_single[:,0]-logit_diff_single[:,1]),'g')
+    plt.title('Logit Difference \n 300 Epochs')
     plt.xlabel('time')
     plt.ylabel('activation_model')
-
-
+    
+    
     ax2=plt.subplot(212,sharex=ax1)
     #plt.subplot(3, 1, 3)
     #plot mount behaior
-    plt.plot(test_labels[:,0], 'r')
+    plt.plot(test_labels_single[:,0], 'r')
     #plot intromission data
-
+    
     #plt.plot(a.intromission_lables_gt[:,0], 'r')
     plt.xlabel('time')
     plt.ylabel('activation_ground_truth')
     plt.show()
+    
+    plt.figure()
+    a=logit_diff_single[:,0]-logit_diff_single[:,1]
+    #dont care about values less than 0
+    a[a<=0]=0
+    a_norm=a/np.max(a)
+    plt.plot(a_norm)
+    plt.plot(test_labels_single[:,0], 'r')
+    plt.title('Normalized Logit Difference')
+    plt.xlabel('time (ms)')
+    plt.ylabel('activation_model')
+##########################################################################
+#Determine accuracy#
 
-    print(" Test Accuracy:", accuracy.eval({X: test_set, Y: test_labels}))
-#    print("Train Accuracy:", accuracy.eval({X: train_x, Y: train_y}))
-#    print("Validation Accuracy:", accuracy.eval({X: test_x, Y: test_y}))
+#    print(" Test Accuracy:", accuracy.eval({X: test_set, Y: test_labels}))
+    print(" Test Accuracy Single File:", accuracy.eval({X: test_set_single, Y: test_labels_single}))
+
+##    print("Train Accuracy:", accuracy.eval({X: train_x, Y: train_y}))
+##    print("Validation Accuracy:", accuracy.eval({X: test_x, Y: test_y}))
  ##################################################################
 
 
